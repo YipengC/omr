@@ -4,6 +4,8 @@
 import cv2
 import numpy as np
 import sys
+import copy
+import math
 
 def largestConnectedComponent(imageBinarized):
 	imageWidth = len(imageBinarized[0])
@@ -117,6 +119,47 @@ def fillPage(imageLCC):
 	return outputImage
 # end fillPage
 
+def intersectPolarLines(r1,theta1,r2,theta2):
+
+	# To find intersection of two lines y = ax + c and y = bx + d use:
+	# x = (d-c)/(a-b)
+	# y = ax + c
+
+	# Find a,b,c,d
+	sinTheta1 = np.sin(theta1)
+	cosTheta1 = np.cos(theta1)
+	sinTheta2 = np.sin(theta2)
+	cosTheta2 = np.cos(theta2)
+
+	if (sinTheta1 == 0 and sinTheta2 == 0):
+		return None
+	elif (sinTheta1 == 0):
+		b = -(cosTheta2/sinTheta2)
+		d = r2/sinTheta2
+
+		x = r1
+		y = b*x + d
+
+	elif (sinTheta2 == 0):
+		a = -(cosTheta1/sinTheta1)
+		c = r1/sinTheta1
+
+		x = r2
+		y = a*x + c
+
+	else:
+		a = -(cosTheta1/sinTheta1)
+		c = r1/sinTheta1
+
+		b = -(cosTheta2/sinTheta2)
+		d = r2/sinTheta2
+
+		x = (d-c)/(a-b)
+		y = a*x + c
+
+	return (x,y)
+# end intersectPolarLines
+
 # Read in image
 print("[OMR Image Preprocessing] Reading in input image...")
 imgInput = cv2.imread(sys.argv[1])
@@ -153,8 +196,46 @@ imgEdgesDilated = cv2.dilate(imgEdges,dilationKernel,iterations=1)
 print("[OMR Image Preprocessing] Performing Hough line transform...")
 houghLines = cv2.HoughLines(imgEdgesDilated, 1, np.pi/180, min(width/2,height/2))
 
+# Sort lines by rho value
+
+sortedHoughLines = sorted(houghLines[0],key=lambda x : x[0])
+"""
+for i in range(0,len(sortedHoughLines)):
+	if (sortedHoughLines[i][0] < 0):
+		sortedHoughLines[i][0] *= (-1)
+		sortedHoughLines[i][1] = (sortedHoughLines[i][1] + np.pi)%(2*np.pi)
+"""
+distanceThreshold = 1
+
+while (len(sortedHoughLines) > 4):
+	nextHoughLines = []
+	length = len(sortedHoughLines)
+	skip = False
+	for i in range(0,length):
+		rho1 = sortedHoughLines[i][0]
+		rho2 = sortedHoughLines[(i+1)%length][0]
+		theta1 = sortedHoughLines[i][1]
+		theta2 = sortedHoughLines[(i+1)%length][1]
+		
+		distance = math.sqrt(rho1*rho1 + rho2*rho2 - 2*rho1*rho2*np.cos(theta2 - theta1))
+		if (not(skip)):
+			if (distance < distanceThreshold):
+				#nextHoughLines.append(sortedHoughLines[i])
+				nextHoughLines.append(np.array([(rho1 + rho2)/2,(theta1 + theta2)/2]))
+				skip = True
+			else:
+				nextHoughLines.append(sortedHoughLines[i])
+		else:
+			skip = False
+
+	distanceThreshold += 1
+	sortedHoughLines = copy.deepcopy(nextHoughLines)
+	print('New iteration:')
+	for rho,theta in sortedHoughLines:
+		print('rho: ' + str(rho) + ' theta: ' + str(theta))
+
 # Highlight lines on original image
-for rho,theta in houghLines[0]:
+for rho,theta in sortedHoughLines:
 	print('rho: ' + str(rho) + ' theta: ' + str(theta))
 	cosTheta = np.cos(theta)
 	sinTheta = np.sin(theta)
@@ -168,12 +249,31 @@ for rho,theta in houghLines[0]:
 
 	cv2.line(imgInput,(x1,y1),(x2,y2),(0,0,255),2)
 
-# Output the thresholded image and the hough transform output on the original image to two seperate jpg files
+# Perform perspective transform
+intersectionPoints = []
+
+for i in range(0,len(sortedHoughLines)-1):
+	for j in range(i+1,len(sortedHoughLines)):
+		intersectionPoints.append(intersectPolarLines(sortedHoughLines[i][0],sortedHoughLines[i][1],sortedHoughLines[j][0],sortedHoughLines[j][1]))
+print(intersectionPoints)
+finalIntersectionPoints = []
+
+for point in intersectionPoints:
+	if (not(point == None)):
+		x = point[0]
+		y = point[1]
+		if (not(x < 0 or x > width-1) and not(y < 0 or y > height-1)):
+			finalIntersectionPoints.append((x,y))
+
+print(finalIntersectionPoints)
+
+# Output the thresholded image, the page outline and the hough transform output on the original image to two seperate jpg files
 print("[OMR Image Preprocessing] Writing to output image files...")
 parsedFilePath = sys.argv[1].split('/')
 print('parsedFilePath: ' + str(parsedFilePath))
 imageName = parsedFilePath[-1].split('.')[0]
 print('imageName: ' + imageName)
-cv2.imwrite('threshold_output_' + imageName + '.jpg',imgEdgesDilated)
+cv2.imwrite('threshold_output_' + imageName + '.jpg',imgBinary)
+cv2.imwrite('page_outline_' + imageName + '.jpg',imgEdgesDilated)
 cv2.imwrite('hough_output_' + imageName + '.jpg',imgInput)
 print("[OMR Image Preprocessing] done.")

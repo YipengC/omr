@@ -4,6 +4,7 @@
 import cv2
 import numpy as np
 import sys
+import copy
 
 def largestConnectedComponent(imageBinarized):
 	imageWidth = len(imageBinarized[0])
@@ -146,7 +147,7 @@ imgEdges = cv2.Canny(imgPageFilled,50,150)
 
 # Dilate edges
 print("[OMR Image Preprocessing] Dilating edges...")
-dilationKernel = np.ones((5,5),np.uint8)
+dilationKernel = np.ones((8,8),np.uint8)
 imgEdgesDilated = cv2.dilate(imgEdges,dilationKernel,iterations=1)
 
 # Hough line transform
@@ -167,6 +168,32 @@ for rho,theta in houghLines[0]:
 	y2 = int(y0 - length * (cosTheta))
 
 	cv2.line(imgInput,(x1,y1),(x2,y2),(0,0,255),2)
+
+# Sort lines by rho value
+
+sortedHoughLines = sorted(houghLines[0],key=lambda x : x[0])
+
+minRhoDiff = 5
+thetaIncrement = np.pi/180
+minThetaDiff = thetaIncrement
+
+while (len(sortedHoughLines) > 4):
+	nextHoughLines = []
+	for i in range(0,len(sortedHoughLines)-1,2):
+		rho1 = sortedHoughLines[i][0]
+		rho2 = sortedHoughLines[i+1][0]
+		theta1 = sortedHoughLines[i][1]
+		theta2 = sortedHoughLines[i+1][1]
+
+		if ((abs(rho1 - rho2) < minRhoDiff) and (abs(theta1 - theta2) < minThetaDiff)):
+			nextHoughLines.append([(rho1 + rho2)/2,(theta1 + theta2)/2])
+		else:
+			nextHoughLines.append(sortedHoughLines[i])
+			nextHoughLines.append(sortedHoughLines[i+1])
+	minRhoDiff += 3
+	minThetaDiff += thetaIncrement
+	sortedHoughLines = copy.deepcopy(nextHoughLines)
+	print(sortedHoughLines)
 
 # Output the thresholded image and the hough transform output on the original image to two seperate jpg files
 print("[OMR Image Preprocessing] Writing to output image files...")
