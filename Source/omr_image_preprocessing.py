@@ -6,6 +6,7 @@ import numpy as np
 import sys
 import copy
 import math
+import omr_threshold_image
 
 def largestConnectedComponent(imageBinarized):
 	imageWidth = len(imageBinarized[0])
@@ -160,120 +161,118 @@ def intersectPolarLines(r1,theta1,r2,theta2):
 	return (x,y)
 # end intersectPolarLines
 
-# Read in image
-print("[OMR Image Preprocessing] Reading in input image...")
-imgInput = cv2.imread(sys.argv[1])
+# Input: grayscale sheet music image
+# Output: binary preprocessed sheet music image
+def process(imgInput):
+	width = len(imgInput[0])
+	height = len(imgInput)
 
-width = len(imgInput[0])
-height = len(imgInput)
+	# Threshold
+	print("[OMR Image Preprocessing] Thresholding...")
+	imgBinary = omr_threshold_image.threshold(imgInput)
 
-# Convert to grayscale
-print("[OMR Image Preprocessing] Converting to grayscale...")
-imgGray = cv2.cvtColor(imgInput, cv2.COLOR_BGR2GRAY)
+	# Find largest connected component
+	print("[OMR Image Preprocessing] Finding largest connected component... (may take a few minutes)")
+	imgLCC = largestConnectedComponent(imgBinary)
 
-# Threshold
-print("[OMR Image Preprocessing] Thresholding...")
-imgBinary = cv2.adaptiveThreshold(imgGray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 99, 2)
+	# Fill page with white pixels
+	print("[OMR Image Preprocessing] Filling page with white pixels...")
+	imgPageFilled = fillPage(imgLCC)
 
-# Find largest connected component
-print("[OMR Image Preprocessing] Finding largest connected component... (may take a few minutes)")
-imgLCC = largestConnectedComponent(imgBinary)
+	# Edge detection
+	print("[OMR Image Preprocessing] Performing edge detection...")
+	imgEdges = cv2.Canny(imgPageFilled,50,150)
 
-# Fill page with white pixels
-print("[OMR Image Preprocessing] Filling page with white pixels...")
-imgPageFilled = fillPage(imgLCC)
+	# Dilate edges
+	print("[OMR Image Preprocessing] Dilating edges...")
+	dilationKernel = np.ones((8,8),np.uint8)
+	imgEdgesDilated = cv2.dilate(imgEdges,dilationKernel,iterations=1)
 
-# Edge detection
-print("[OMR Image Preprocessing] Performing edge detection...")
-imgEdges = cv2.Canny(imgPageFilled,50,150)
+	# Hough line transform
+	print("[OMR Image Preprocessing] Performing Hough line transform...")
+	houghLines = cv2.HoughLines(imgEdgesDilated, 1, np.pi/180, min(width/2,height/2))
 
-# Dilate edges
-print("[OMR Image Preprocessing] Dilating edges...")
-dilationKernel = np.ones((8,8),np.uint8)
-imgEdgesDilated = cv2.dilate(imgEdges,dilationKernel,iterations=1)
+	# Sort lines by rho value
 
-# Hough line transform
-print("[OMR Image Preprocessing] Performing Hough line transform...")
-houghLines = cv2.HoughLines(imgEdgesDilated, 1, np.pi/180, min(width/2,height/2))
+	sortedHoughLines = sorted(houghLines[0],key=lambda x : x[0])
+	"""
+	for i in range(0,len(sortedHoughLines)):
+		if (sortedHoughLines[i][0] < 0):
+			sortedHoughLines[i][0] *= (-1)
+			sortedHoughLines[i][1] = (sortedHoughLines[i][1] + np.pi)%(2*np.pi)
+	"""
+	distanceThreshold = 1
 
-# Sort lines by rho value
-
-sortedHoughLines = sorted(houghLines[0],key=lambda x : x[0])
-"""
-for i in range(0,len(sortedHoughLines)):
-	if (sortedHoughLines[i][0] < 0):
-		sortedHoughLines[i][0] *= (-1)
-		sortedHoughLines[i][1] = (sortedHoughLines[i][1] + np.pi)%(2*np.pi)
-"""
-distanceThreshold = 1
-
-while (len(sortedHoughLines) > 4):
-	nextHoughLines = []
-	length = len(sortedHoughLines)
-	skip = False
-	for i in range(0,length):
-		rho1 = sortedHoughLines[i][0]
-		rho2 = sortedHoughLines[(i+1)%length][0]
-		theta1 = sortedHoughLines[i][1]
-		theta2 = sortedHoughLines[(i+1)%length][1]
+	while (len(sortedHoughLines) > 4):
+		nextHoughLines = []
+		length = len(sortedHoughLines)
+		skip = False
+		for i in range(0,length):
+			rho1 = sortedHoughLines[i][0]
+			rho2 = sortedHoughLines[(i+1)%length][0]
+			theta1 = sortedHoughLines[i][1]
+			theta2 = sortedHoughLines[(i+1)%length][1]
 		
-		distance = math.sqrt(rho1*rho1 + rho2*rho2 - 2*rho1*rho2*np.cos(theta2 - theta1))
-		if (not(skip)):
-			if (distance < distanceThreshold):
-				#nextHoughLines.append(sortedHoughLines[i])
-				nextHoughLines.append(np.array([(rho1 + rho2)/2,(theta1 + theta2)/2]))
-				skip = True
+			distance = math.sqrt(rho1*rho1 + rho2*rho2 - 2*rho1*rho2*np.cos(theta2 - theta1))
+			if (not(skip)):
+				if (distance < distanceThreshold):
+					#nextHoughLines.append(sortedHoughLines[i])
+					nextHoughLines.append(np.array([(rho1 + rho2)/2,(theta1 + theta2)/2]))
+					skip = True
+				else:
+					nextHoughLines.append(sortedHoughLines[i])
 			else:
-				nextHoughLines.append(sortedHoughLines[i])
-		else:
-			skip = False
+				skip = False
 
-	distanceThreshold += 1
-	sortedHoughLines = copy.deepcopy(nextHoughLines)
-	print('New iteration:')
+		distanceThreshold += 1
+		sortedHoughLines = copy.deepcopy(nextHoughLines)
+		print('New iteration:')
+		for rho,theta in sortedHoughLines:
+			print('rho: ' + str(rho) + ' theta: ' + str(theta))
+
+	# Highlight lines on original image
 	for rho,theta in sortedHoughLines:
 		print('rho: ' + str(rho) + ' theta: ' + str(theta))
+		cosTheta = np.cos(theta)
+		sinTheta = np.sin(theta)
+		x0 = cosTheta*rho
+		y0 = sinTheta*rho
+		length = max(width,height)
+		x1 = int(x0 + length * (-sinTheta))
+		y1 = int(y0 + length * (cosTheta))
+		x2 = int(x0 - length * (-sinTheta))
+		y2 = int(y0 - length * (cosTheta))
 
-# Highlight lines on original image
-for rho,theta in sortedHoughLines:
-	print('rho: ' + str(rho) + ' theta: ' + str(theta))
-	cosTheta = np.cos(theta)
-	sinTheta = np.sin(theta)
-	x0 = cosTheta*rho
-	y0 = sinTheta*rho
-	length = max(width,height)
-	x1 = int(x0 + length * (-sinTheta))
-	y1 = int(y0 + length * (cosTheta))
-	x2 = int(x0 - length * (-sinTheta))
-	y2 = int(y0 - length * (cosTheta))
+		cv2.line(imgInput,(x1,y1),(x2,y2),(0,0,255),2)
 
-	cv2.line(imgInput,(x1,y1),(x2,y2),(0,0,255),2)
+	# Perform perspective transform
+	intersectionPoints = []
 
-# Perform perspective transform
-intersectionPoints = []
+	for i in range(0,len(sortedHoughLines)-1):
+		for j in range(i+1,len(sortedHoughLines)):
+			intersectionPoints.append(intersectPolarLines(sortedHoughLines[i][0],sortedHoughLines[i][1],sortedHoughLines[j][0],sortedHoughLines[j][1]))
+	print(intersectionPoints)
+	finalIntersectionPoints = []
 
-for i in range(0,len(sortedHoughLines)-1):
-	for j in range(i+1,len(sortedHoughLines)):
-		intersectionPoints.append(intersectPolarLines(sortedHoughLines[i][0],sortedHoughLines[i][1],sortedHoughLines[j][0],sortedHoughLines[j][1]))
-print(intersectionPoints)
-finalIntersectionPoints = []
+	for point in intersectionPoints:
+		if (not(point == None)):
+			x = point[0]
+			y = point[1]
+			if (not(x < 0 or x > width-1) and not(y < 0 or y > height-1)):
+				finalIntersectionPoints.append((x,y))
 
-for point in intersectionPoints:
-	if (not(point == None)):
-		x = point[0]
-		y = point[1]
-		if (not(x < 0 or x > width-1) and not(y < 0 or y > height-1)):
-			finalIntersectionPoints.append((x,y))
+	print(finalIntersectionPoints)
 
-print(finalIntersectionPoints)
+	#Incomplete
+	return None
 
-# Output the thresholded image, the page outline and the hough transform output on the original image to two seperate jpg files
-print("[OMR Image Preprocessing] Writing to output image files...")
-parsedFilePath = sys.argv[1].split('/')
-print('parsedFilePath: ' + str(parsedFilePath))
-imageName = parsedFilePath[-1].split('.')[0]
-print('imageName: ' + imageName)
-cv2.imwrite('threshold_output_' + imageName + '.jpg',imgBinary)
-cv2.imwrite('page_outline_' + imageName + '.jpg',imgEdgesDilated)
-cv2.imwrite('hough_output_' + imageName + '.jpg',imgInput)
-print("[OMR Image Preprocessing] done.")
+	# Output the thresholded image, the page outline and the hough transform output on the original image to two separate jpg files
+	"""
+	print("[OMR Image Preprocessing] Writing to output image files...")
+	parsedFilePath = sys.argv[1].split('/')
+	print('parsedFilePath: ' + str(parsedFilePath))
+	imageName = parsedFilePath[-1].split('.')[0]
+	print('imageName: ' + imageName)
+	cv2.imwrite('page_outline_' + imageName + '.png',imgEdgesDilated)
+	print("[OMR Image Preprocessing] done.")
+	"""

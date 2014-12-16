@@ -3,8 +3,8 @@ import numpy as np
 import sys
 from scipy import stats
 import omr_classes
-import pickle
 
+# Returns True iff rho corresponds to the top of a set of 5 staff lines
 def isTopStaffLine(rho,rhoValues,gap,threshold):
 	for i in range(1,5):
 		member = False
@@ -15,120 +15,113 @@ def isTopStaffLine(rho,rhoValues,gap,threshold):
 			return False
 	return True
 
-# Read in image from file
-imgInput = cv2.imread(sys.argv[1])
+# Input: a thresholded sheet music image
+# Output: an omr_classes.Staff object corresponding to the input
+def getStaffData(imgInput):
+	width = len(imgInput[0])
+	height = len(imgInput)
 
-width = len(imgInput[0])
-height = len(imgInput)
+	# Invert the input binary image
+	imgBinary = 255 - imgInput
 
-# Convert to grayscale
-imgGray = cv2.cvtColor(imgInput,cv2.COLOR_BGR2GRAY)
+	# Apply Hough line transform
+	houghLines = cv2.HoughLines(imgBinary,1,np.pi/180,min(width,height)/2)
 
-# Threshold
-imgBinary = cv2.adaptiveThreshold(imgGray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY_INV,99,2)
+	# Show lines on copy of input image
+	imgHoughLines = imgInput.copy()
 
-# Apply Hough line transform
-houghLines = cv2.HoughLines(imgBinary,1,np.pi/180,min(width,height)/2)
+	for rho,theta in houghLines[0]:
+		print('rho: ' + str(rho) + ' theta: ' + str(theta))
+		cosTheta = np.cos(theta)
+		sinTheta = np.sin(theta)
+		x0 = cosTheta*rho
+		y0 = sinTheta*rho
+		length = max(width,height)
+		x1 = int(x0 + length * (-sinTheta))
+		y1 = int(y0 + length * (cosTheta))
+		x2 = int(x0 - length * (-sinTheta))
+		y2 = int(y0 - length * (cosTheta))
 
-# Show lines on copy of input image
-imgHoughLines = imgInput.copy()
+		cv2.line(imgHoughLines,(x1,y1),(x2,y2),(0,0,255),1)
 
-for rho,theta in houghLines[0]:
-	print('rho: ' + str(rho) + ' theta: ' + str(theta))
-	cosTheta = np.cos(theta)
-	sinTheta = np.sin(theta)
-	x0 = cosTheta*rho
-	y0 = sinTheta*rho
-	length = max(width,height)
-	x1 = int(x0 + length * (-sinTheta))
-	y1 = int(y0 + length * (cosTheta))
-	x2 = int(x0 - length * (-sinTheta))
-	y2 = int(y0 - length * (cosTheta))
+	# Output image with Hough lines
+	"""
+	parsedFilePath = sys.argv[1].split('/')
+	imageName = parsedFilePath[-1].split('.')[0]
+	cv2.imwrite('hough_output_' + imageName + '.jpg',imgHoughLines)
+	"""
 
-	cv2.line(imgHoughLines,(x1,y1),(x2,y2),(0,0,255),1)
+	# Find staff line spacing
 
-# Output image with Hough lines
-parsedFilePath = sys.argv[1].split('/')
-imageName = parsedFilePath[-1].split('.')[0]
-cv2.imwrite('hough_output_' + imageName + '.jpg',imgHoughLines)
+	# Find average difference in rho
+	sortedHoughLines = sorted(houghLines[0],key = lambda x : x[0])
 
-# Find staff line spacing
+	print(sortedHoughLines)
 
-# Find average difference in rho
-sortedHoughLines = sorted(houghLines[0],key = lambda x : x[0])
+	rhoDifferences = np.zeros((len(sortedHoughLines)-1))
+	for i in range(0,len(sortedHoughLines)-1):
+		rhoDifferences[i] = sortedHoughLines[i+1][0] - sortedHoughLines[i][0]
 
-print(sortedHoughLines)
+	sortedRhoDifferences = sorted(rhoDifferences)
+	medianRho = int(sortedRhoDifferences[len(sortedRhoDifferences)/2])
 
-rhoDifferences = np.zeros((len(sortedHoughLines)-1))
-for i in range(0,len(sortedHoughLines)-1):
-	rhoDifferences[i] = sortedHoughLines[i+1][0] - sortedHoughLines[i][0]
+	print(sortedRhoDifferences)
 
-sortedRhoDifferences = sorted(rhoDifferences)
-medianRho = int(sortedRhoDifferences[len(sortedRhoDifferences)/2])
+	print("medianRho: " + str(medianRho))
 
-print(sortedRhoDifferences)
+	# Now we keep only lines with theta between 1.56 and 1.58. We also only store rho values from now on
 
-print("medianRho: " + str(medianRho))
+	sortedRhoValues = []
+	for rho,theta in sortedHoughLines:
+		if (1.56 < theta and theta < 1.58):
+			sortedRhoValues.append(int(rho))
 
-# Now we keep only lines with theta between 1.56 and 1.58. We also only store rho values from now on
+	print(sortedRhoValues)
 
-sortedRhoValues = []
-for rho,theta in sortedHoughLines:
-	if (1.56 < theta and theta < 1.58):
-		sortedRhoValues.append(int(rho))
+	# Find rho value of top line of each stave
+	staffTops = []
 
-print(sortedRhoValues)
+	for rho in sortedRhoValues:
+		if (isTopStaffLine(rho,sortedRhoValues,medianRho,1)):
+			staffTops.append(rho)
 
-# Find rho value of top line of each stave
-staffTops = []
+	print(staffTops)
 
-for rho in sortedRhoValues:
-	if (isTopStaffLine(rho,sortedRhoValues,medianRho,1)):
-		staffTops.append(rho)
+	# Show staff lines on copy of input image
+	imgStaffLines = imgInput.copy()
 
-print(staffTops)
+	for rho in staffTops:
+		for i in range(0,5):
+			y = rho + i*medianRho
+			cv2.line(imgStaffLines,(0,y),(width-1,y),(0,0,255),1)
 
-# Show staff lines on copy of input image
-imgStaffLines = imgInput.copy()
+	# Output image with staff lines
+	parsedFilePath = sys.argv[1].split('/')
+	imageName = parsedFilePath[-1].split('.')[0]
+	cv2.imwrite('staff_output_' + imageName + '.jpg',imgStaffLines)
 
-for rho in staffTops:
-	for i in range(0,5):
-		y = rho + i*medianRho
-		cv2.line(imgStaffLines,(0,y),(width-1,y),(0,0,255),1)
+	# Find most common black pixel run length (white pixel run length in binary image due to inversion)
+	# This should correspond to staff line thickness
 
-# Output image with staff lines
-parsedFilePath = sys.argv[1].split('/')
-imageName = parsedFilePath[-1].split('.')[0]
-cv2.imwrite('staff_output_' + imageName + '.jpg',imgStaffLines)
+	runLengths = []
 
-# Find most common black pixel run length (white pixel run length in binary image due to inversion)
-# This should correspond to staff line thickness
-
-runLengths = []
-
-for x in range(width*1/4,width*3/4):
-	inWhite = False
-	currentRun = 0
-	for y in range(0,height):
-		if (imgBinary[y,x] == 255):
-			if (inWhite):
-				currentRun = currentRun + 1
+	for x in range(width*1/4,width*3/4):
+		inWhite = False
+		currentRun = 0
+		for y in range(0,height):
+			if (imgBinary[y,x] == 255):
+				if (inWhite):
+					currentRun = currentRun + 1
+				else:
+					currentRun = 1
+					inWhite = True
 			else:
-				currentRun = 1
-				inWhite = True
-		else:
-			if (inWhite):
-				runLengths.append(currentRun)
-				inWhite = False
+				if (inWhite):
+					runLengths.append(currentRun)
+					inWhite = False
 
-staffLineThickness = int(stats.mode(runLengths)[0][0])
-print(staffLineThickness)
+	staffLineThickness = int(stats.mode(runLengths)[0][0])
+	print(staffLineThickness)
 
-currentStaff = omr_classes.Staff(medianRho,staffLineThickness,staffTops)
-currentSheet = omr_classes.Sheet(currentStaff,width,height)
-
-sheetFile = open("sheet","w")
-
-pickle.dump(currentSheet,sheetFile)
-
-sheetFile.close()
+	currentStaff = omr_classes.Staff(medianRho,staffLineThickness,staffTops)
+	return currentStaff
