@@ -17,11 +17,9 @@ def removeStaffLines(img,staff):
 	kernel = np.ones((staff.lineThickness*2,staff.lineThickness*2),np.uint8)
 	img = cv2.morphologyEx(img,cv2.MORPH_OPEN,kernel)
 
-	return img
-
 	# Output image with staff lines removed
-	"""
 	parsedFilePath = sys.argv[1].split('/')
 	imageName = parsedFilePath[-1].split('.')[0]
 	cv2.imwrite('staff_removal_' + imageName + '.png',img)
-	"""
+
+	return img
