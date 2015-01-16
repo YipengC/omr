@@ -1,0 +1,34 @@
+import cv2
+import numpy as np
+import math
+
+def dist(x,y):
+	return math.sqrt((x[0] - x[1])**2 + ([y[0] - y[1])**2)
+
+def average(points):
+	sumX = 0
+	sumY = 0
+	for point in points:
+		sumX += point[0]
+		sumY += point[1]
+	n = len(points)
+	return (sumX/n,sumY/n)
+
+def removeDuplicateMatches(threshold,points):
+	result = []
+	while (points):
+		currentPoints = []
+		nextPoints = []
+		referencePoint = points[0]
+		currentPoints.append(referencePoint)
+		if (len(points) > 1):
+			for i in range(1,len(points)):
+				comparePoint = points[i]
+				if (dist(referencePoint,comparePoint) < threshold):
+					currentPoints.append(comparePoint)
+				else:
+					nextPoints.append(comparePoint)
+		result.append(average(currentPoints))
+		points = nextPoints
+	return result
+

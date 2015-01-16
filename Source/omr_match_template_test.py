@@ -19,13 +19,27 @@ templates = (
 	('natural','natural_template.png'),
 	('flat','flat_template.png'),
 	('note head','note_head_template.png'),
-	('note head 2','note_head_2_template.png'),
+	('note head','note_head_2_template.png'),
 	('minim note head','minim_note_head_template.png')
 )
 
 methods = [cv2.TM_CCOEFF,cv2.TM_CCOEFF_NORMED,cv2.TM_CCORR,cv2.TM_CCORR_NORMED,cv2.TM_SQDIFF,cv2.TM_SQDIFF_NORMED]
 
-objects = []
+# objects is a dictionary with object names as keys and a list as the value. The first element of the list is a tuple containing the dimensions of the object and the second is a list of the locations of the objects
+objects = {
+	'treble clef': [],
+	'bass clef': [],
+	'crotchet rest': [],
+	'time signature 4': [],
+	'time signature 3': [],
+	'quaver rest': [],
+	'semibreve rest': [],
+	'sharp': [],
+	'natural': [],
+	'flat': [],
+	'note head': [],
+	'minim note head': []
+}
 
 threshold = 0.7
 for template in templates:
@@ -38,7 +52,9 @@ for template in templates:
 	locations = np.where(result >= threshold)
 	for point in zip(*locations[::-1]):
 		cv2.rectangle(img,point,(point[0]+width,point[1]+height),255,-1)
-		objects.append((template[0],point,(width,height)))
+		objects[template[0]].append((width,height))
+		objects[template[0]].append([])
+		objects[template[0][1]].append(point)
 
 print(objects)
 

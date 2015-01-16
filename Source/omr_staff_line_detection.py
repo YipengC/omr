@@ -61,6 +61,19 @@ def getStaffData(imgInput):
 		print('rho: ' + str(rho) + ' theta: ' + str(theta))
 		cosTheta = np.cos(theta)
 		sinTheta = np.sin(theta)
+		if (sinTheta == 0):
+			continue
+		x0 = cosTheta*rho
+		y0 = sinTheta*rho
+		y1 = int(y0 + x0/np.tan(theta))
+		y2 = int(y0 + (x0 - (width-1))/np.tan(theta))
+
+		cv2.line(imgHoughLines,(0,y1),(width-1,y2),(0,0,255),1)
+	"""
+	for rho,theta in houghLines[0]:
+		print('rho: ' + str(rho) + ' theta: ' + str(theta))
+		cosTheta = np.cos(theta)
+		sinTheta = np.sin(theta)
 		x0 = cosTheta*rho
 		y0 = sinTheta*rho
 		length = max(width,height)
@@ -70,7 +83,7 @@ def getStaffData(imgInput):
 		y2 = int(y0 - length * (cosTheta))
 
 		cv2.line(imgHoughLines,(x1,y1),(x2,y2),(0,0,255),1)
-
+	"""
 	# Output image with Hough lines
 	parsedFilePath = sys.argv[1].split('/')
 	imageName = parsedFilePath[-1].split('.')[0]

@@ -4,6 +4,7 @@ import omr_threshold_image
 import omr_classes
 import omr_staff_line_detection
 import omr_staff_line_removal
+import omr_recognition
 
 img = cv2.imread(sys.argv[1],0)
 
@@ -16,4 +17,5 @@ staffData = omr_staff_line_detection.getStaffData(img)
 # Remove staff lines
 img = omr_staff_line_removal.removeStaffLines(img,staffData)
 
-
+# Perform recognition
+omr_recognition.matchTemplates(img)
