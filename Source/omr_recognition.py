@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import math
+import omr_classes
 
 def dist(a,b):
 	return math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
@@ -32,7 +33,7 @@ def removeDuplicateMatches(threshold,points):
 		points = nextPoints
 	return result
 
-def matchTemplates(img):
+def matchTemplates(img,staffData):
 	templatePath = '../Resources/Templates/'
 
 	templates = (
@@ -54,18 +55,18 @@ def matchTemplates(img):
 	methods = [cv2.TM_CCOEFF,cv2.TM_CCOEFF_NORMED,cv2.TM_CCORR,cv2.TM_CCORR_NORMED,cv2.TM_SQDIFF,cv2.TM_SQDIFF_NORMED]
 
 	objects = {
-		'treble clef': [[],[]],
-		'bass clef': [[],[]],
-		'crotchet rest': [[],[]],
-		'time signature 4': [[],[]],
-		'time signature 3': [[],[]],
-		'quaver rest': [[],[]],
-		'semibreve rest': [[],[]],
-		'sharp': [[],[]],
-		'natural': [[],[]],
-		'flat': [[],[]],
-		'note head': [[],[]],
-		'minim note head': [[],[]]
+		'treble clef': [],
+		'bass clef': [],
+		'crotchet rest': [],
+		'time signature 4': [],
+		'time signature 3': [],
+		'quaver rest': [],
+		'semibreve rest': [],
+		'sharp': [],
+		'natural': [],
+		'flat': [],
+		'note head': [],
+		'minim note head': []
 	}
 
 	matchHighlightImage = img.copy()
@@ -76,15 +77,22 @@ def matchTemplates(img):
 		width = len(templateImg[1])
 	
 		result = cv2.matchTemplate(img,templateImg,methods[1])
-
-		objects[template[0]][0].append((width,height))
 		
+		musicalObjectPoints = []
+
 		locations = np.where(result >= threshold)
 		for point in zip(*locations[::-1]):
 			cv2.rectangle(img,point,(point[0]+width,point[1]+height),255,-1)
-			objects[template[0]][1].append(point)
-		objects[template[0]][1] = removeDuplicateMatches(40,objects[template[0]][1])
-		for point in objects[template[0]][1]:
+			musicalObjectPoints.append(point)
+		musicalObjectPoints = removeDuplicateMatches(40,musicalObjectPoints)
+		for point in musicalObjectPoints:
 			cv2.rectangle(matchHighlightImage,point,(point[0]+width,point[1]+height),0,1)
+			pitch = staffData.getPitch(point[1]+height/2)
+			objects[template[0]].append(omr_classes.MusicalObject(template[0],point,(width,height),pitch))
 	print(objects)
 	cv2.imwrite('template_match_test.png',matchHighlightImage)
+	
+
+def performRecognition(img,staffData):
+	matchTemplates(img,staffData)
+	

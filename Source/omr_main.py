@@ -18,4 +18,4 @@ staffData = omr_staff_line_detection.getStaffData(img)
 img = omr_staff_line_removal.removeStaffLines(img,staffData)
 
 # Perform recognition
-omr_recognition.matchTemplates(img)
+omr_recognition.performRecognition(img,staffData)
