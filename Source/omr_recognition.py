@@ -89,10 +89,28 @@ def matchTemplates(img,staffData):
 			cv2.rectangle(matchHighlightImage,point,(point[0]+width,point[1]+height),0,1)
 			pitch = staffData.getPitch(point[1]+height/2)
 			objects[template[0]].append(omr_classes.MusicalObject(template[0],point,(width,height),pitch))
-	print(objects)
 	cv2.imwrite('template_match_test.png',matchHighlightImage)
-	
+	return objects	
+
+# Takes a list of MusicalObjects and removes the ones that cannot possibly be a rest
+def filterSemibreveRests(rests):
+	result = []
+	for musicalObject in rests:
+		print(musicalObject.point)
+		print(musicalObject.pitch)
+		if ((musicalObject.pitch == 'B4') or (musicalObject.pitch == 'C5') or (musicalObject.pitch == 'D5') or (musicalObject.pitch == 'D3') or (musicalObject.pitch == 'E3') or (musicalObject.pitch == 'F3')):
+			result.append(musicalObject)
+	print('Filtered result:')
+	for rest in result:
+		print(rest.point)
+		print(rest.pitch)
+	return result
+
+# Takes a dictionary of musical objects and filters out the erroneous matches
+def filterMusicalObjects(musicalObjects):
+	musicalObjects['semibreve rest'] = filterSemibreveRests(musicalObjects['semibreve rest'])
+	return musicalObjects
 
 def performRecognition(img,staffData):
-	matchTemplates(img,staffData)
-	
+	musicalObjects = matchTemplates(img,staffData)
+	musicalObjects = filterMusicalObjects(musicalObjects)

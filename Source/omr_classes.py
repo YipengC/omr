@@ -36,11 +36,18 @@ class Staff:
 		treble = True
 		pitches = self.treblePitches
 		lineDifference = self.lineSpacing + self.lineThickness
+		lineDifferenceIsOdd = True if (lineDifference%2 == 1) else False
 		for top in self.tops:
 			currentY = top - 2*(lineDifference) + self.lineThickness/2
+			plusOne = False
 			for pitch in pitches:
+				print('currentY: ' + str(currentY))
 				self.lines[currentY] = pitch
-				currentY = currentY + lineDifference
+				currentY = currentY + lineDifference/2
+				# This is used in the case that lineDifference is odd and we must compensate by adding 1 every other line to ensure corrent line spacing
+				if (lineDifferenceIsOdd):
+					currentY = currentY + (1 if plusOne else 0)
+					plusOne = not(plusOne)
 			treble = (not(treble))
 			if (treble):
 				pitches = self.treblePitches
@@ -52,8 +59,11 @@ class Staff:
 
 	def getPitch(self,y):
 		yValues = self.lines.keys()
-		sorted(yValues)
+		yValues.sort()
+		print('Sorted yValues: ' + str(yValues))
 		key = bisect.bisect_left(yValues,y)
+		if (key == len(yValues)):
+			key = key - 1
 		return self.lines[yValues[key]]
 
 class Sheet:
