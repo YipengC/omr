@@ -41,7 +41,6 @@ class Staff:
 			currentY = top - 2*(lineDifference) + self.lineThickness/2
 			plusOne = False
 			for pitch in pitches:
-				print('currentY: ' + str(currentY))
 				self.lines[currentY] = pitch
 				currentY = currentY + lineDifference/2
 				# This is used in the case that lineDifference is odd and we must compensate by adding 1 every other line to ensure corrent line spacing
@@ -60,7 +59,6 @@ class Staff:
 	def getPitch(self,y):
 		yValues = self.lines.keys()
 		yValues.sort()
-		print('Sorted yValues: ' + str(yValues))
 		key = bisect.bisect_left(yValues,y)
 		if (key == len(yValues)):
 			key = key - 1
@@ -71,3 +69,4 @@ class Sheet:
 		self.staff = staff
 		self.width = width
 		self.height = height
+

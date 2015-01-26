@@ -18,8 +18,11 @@ def average(points):
 def removeDuplicateMatches(threshold,points):
 	result = []
 	while (points):
+		# currentPoints is a list of the current points to be averaged into a single point due to correspondence to the same object
 		currentPoints = []
+		# nextPoints is a list of the points not removed in the current iteration
 		nextPoints = []
+		# referencePoint is the point being compared to all of the others in the current iteration
 		referencePoint = points[0]
 		currentPoints.append(referencePoint)
 		if (len(points) > 1):
@@ -54,6 +57,7 @@ def matchTemplates(img,staffData):
 
 	methods = [cv2.TM_CCOEFF,cv2.TM_CCOEFF_NORMED,cv2.TM_CCORR,cv2.TM_CCORR_NORMED,cv2.TM_SQDIFF,cv2.TM_SQDIFF_NORMED]
 
+	# Each dictionary value is a list of MusicalObjects identified as an object of the type indicated by the key
 	objects = {
 		'treble clef': [],
 		'bass clef': [],
@@ -111,6 +115,48 @@ def filterMusicalObjects(musicalObjects):
 	musicalObjects['semibreve rest'] = filterSemibreveRests(musicalObjects['semibreve rest'])
 	return musicalObjects
 
+# Given a binary image of sheet music with staff lines removed, a list of notehead objects and a Staff object, this function identifies the type of note each of the noteheads belong to
+def identifyNotes(img,noteheads,staffData):
+	# Invert the image for findContours
+	img = 255 - img
+
+	# Find contours
+	contours,hierarchy = cv2.findContours(img,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+	# Remove contours that have dimensions that are too large to correspond to notes
+	heightThreshold = 8*(staffData.lineThickness + staffData.lineSpacing)
+	filteredContours = []
+	for contour in contours:
+		roi = cv2.boundingRect(contour)
+		if (roi[3] < heightThreshold):
+			filteredContours.append(contour)
+	contours = filteredContours
+
+	# contourMap is a list of tuples (contour,noteheads) where contour is a list of points representing a contour and noteheads is a list of noteheads whose centre lies within that contour
+	contourMap = []
+	
+	# Identify, for each contour, which noteheads has a centre that lies within that contour
+	for contour in contours:
+		noteheadsInContour = []
+		for notehead in noteheads:
+			if (cv2.pointPolygonTest(contour,tuple(map(lambda (x,y): x+y/2,zip(notehead.point,notehead.dimensions))),False) == 1):
+				noteheadsInContour.append(notehead)
+		if (noteheadsInContour):
+			contourMap.append((contour,noteheadsInContour))
+	print(len(contours))
+	print(len(contourMap))
+	
+	imgContours = np.zeros(img.shape,dtype=np.uint8)
+	cv2.drawContours(imgContours,contours,-1,255)
+	boundingBoxes = []
+	for contour,noteheads in contourMap:
+		boundingBoxes.append(cv2.boundingRect(contour))
+	for x,y,w,h in boundingBoxes:
+		cv2.rectangle(imgContours,(x,y),(x+w,y+h),127,1)
+
+	cv2.imwrite('identifyNotesContoursTest.png',imgContours)
+	
 def performRecognition(img,staffData):
-	musicalObjects = matchTemplates(img,staffData)
+	templateMatchingImage = img.copy()
+	musicalObjects = matchTemplates(templateMatchingImage,staffData)
 	musicalObjects = filterMusicalObjects(musicalObjects)
+	identifyNotes(img,musicalObjects['note head'],staffData)
