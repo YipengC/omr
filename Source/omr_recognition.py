@@ -115,6 +115,24 @@ def filterMusicalObjects(musicalObjects):
 	musicalObjects['semibreve rest'] = filterSemibreveRests(musicalObjects['semibreve rest'])
 	return musicalObjects
 
+# Used in identifyNodes
+def maxVerticalBlackCrossings(img,notehead,offsetX):
+	xValues = []
+	xValues.append(notehead.point[0] + offsetX - 8)
+	xValues.append(notehead.point[0] + notehead.dimensions[0] + offsetX + 8)
+	currentMaxBlackCrossings = 0
+	for x in xValues:
+		transitions = 0
+		currentColour = 255
+		for y in range(0,len(img)):
+			if (img[y,x] != currentColour):
+				currentColour = img[y,x]
+				transitions = transitions + 1
+		blackCrossings = transitions/2
+		if (blackCrossings > currentMaxBlackCrossings):
+			currentMaxBlackCrossings = blackCrossings
+	return currentMaxBlackCrossings
+
 # Given a binary image of sheet music with staff lines removed, a list of notehead objects and a Staff object, this function identifies the type of note each of the noteheads belong to
 def identifyNotes(img,noteheads,staffData):
 	# Invert the image for findContours
@@ -155,6 +173,36 @@ def identifyNotes(img,noteheads,staffData):
 
 	cv2.imwrite('identifyNotesContoursTest.png',imgContours)
 	
+	# For each contour, identify each note that lies within it by looking at the number of vertical black crossings either side of the note head
+
+	for contour,noteheads in contourMap:
+		roi = cv2.boundingRect(contour)
+		contourImg = np.empty((roi[3]+32,roi[2]+32),dtype=np.uint8)
+		contourImg.fill(255)
+		offsetX = - roi[0] + 16
+		offsetY = - roi[1] + 16
+		for point in contour:
+			point[0][0] = point[0][0] + offsetX
+			point[0][1] = point[0][1] + offsetY
+		cv2.drawContours(contourImg,[contour],-1,0,-1)
+		cv2.imshow('contour',contourImg)
+		cv2.waitKey(0)
+		cv2.destroyAllWindows()
+		for notehead in noteheads:
+			mvbc = maxVerticalBlackCrossings(contourImg,notehead,offsetX)
+			if (mvbc == 0):
+				notehead.name = 'crotchet'
+			elif (mvbc == 1):
+				notehead.name = 'quaver'
+			elif (mvbc == 2):
+				notehead.name = 'semiquaver'
+			elif (mvbc == 3):
+				notehead.name = 'demisemiquaver'
+			else:
+				notehead.name = 'unidentified'
+			print(notehead.name)
+		print
+
 def performRecognition(img,staffData):
 	templateMatchingImage = img.copy()
 	musicalObjects = matchTemplates(templateMatchingImage,staffData)
