@@ -259,12 +259,14 @@ def process(imgInput):
 			x = point[0]
 			y = point[1]
 			if (not(x < 0 or x > width-1) and not(y < 0 or y > height-1)):
-				finalIntersectionPoints.append((x,y))
-
+				finalIntersectionPoints.append((int(x),int(y)))
+	finalIntersectionPoints = np.array(finalIntersectionPoints,dtype='float32')
 	print(finalIntersectionPoints)
 
-	#Incomplete
-	return None
+	transformMatrix = cv2.getPerspectiveTransform(finalIntersectionPoints,np.array([(0,0),(0,height),(width,0),(width,height)],dtype='float32'))
+
+	outputImage = cv2.warpPerspective(imgBinary,transformMatrix,(width,height))
+	return outputImage
 
 	# Output the thresholded image, the page outline and the hough transform output on the original image to two separate jpg files
 	"""

@@ -1,0 +1,9 @@
+import sys
+import cv2
+import omr_image_preprocessing
+
+img = cv2.imread(sys.argv[1],0)
+
+img = omr_image_preprocessing.process(imgInput)
+
+
