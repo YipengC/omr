@@ -40,19 +40,19 @@ def matchTemplates(img,staffData):
 	templatePath = '../Resources/Templates/'
 
 	templates = (
-		('treble clef','treble_clef_template.png'),
-		('bass clef','bass_clef_template.png'),
-		('crotchet rest','crotchet_rest_template.png'),
-		('time signature 4','time_signature_4_template.png'),
-		('time signature 3','time_signature_3_template.png'),
-		('quaver rest','quaver_rest_template.png'),
-		('semibreve rest','semibreve_rest_template.png'),
-		('sharp','sharp_template.png'),
-		('natural','natural_template.png'),
-		('flat','flat_template.png'),
-	#	('note head','note_head_template.png'),
-		('note head','note_head_2_template.png'),
-		('minim note head','minim_note_head_template.png')
+		('treble clef','treble_clef_template.png',20),
+		('bass clef','bass_clef_template.png',20),
+		('crotchet rest','crotchet_rest_template.png',20),
+		('time signature 4','time_signature_4_template.png',20),
+		('time signature 3','time_signature_3_template.png',20),
+		('quaver rest','quaver_rest_template.png',20),
+		('semibreve rest','semibreve_rest_template.png',20),
+		('sharp','sharp_template.png',20),
+		('natural','natural_template.png',20),
+		('flat','flat_template.png',20),
+	#	('note head','note_head_template.png',20),
+		('note head','note_head_2_template.png',20),
+		('minim note head','minim_note_head_template.png',20)
 	)
 
 	methods = [cv2.TM_CCOEFF,cv2.TM_CCOEFF_NORMED,cv2.TM_CCORR,cv2.TM_CCORR_NORMED,cv2.TM_SQDIFF,cv2.TM_SQDIFF_NORMED]
@@ -115,6 +115,24 @@ def filterMusicalObjects(musicalObjects):
 	musicalObjects['semibreve rest'] = filterSemibreveRests(musicalObjects['semibreve rest'])
 	return musicalObjects
 
+# Used in identifyNodes
+def maxVerticalBlackCrossings(img,notehead,offsetX):
+	xValues = []
+	xValues.append(notehead.point[0] + offsetX - 8)
+	xValues.append(notehead.point[0] + notehead.dimensions[0] + offsetX + 8)
+	currentMaxBlackCrossings = 0
+	for x in xValues:
+		transitions = 0
+		currentColour = 255
+		for y in range(0,len(img)):
+			if (img[y,x] != currentColour):
+				currentColour = img[y,x]
+				transitions = transitions + 1
+		blackCrossings = transitions/2
+		if (blackCrossings > currentMaxBlackCrossings):
+			currentMaxBlackCrossings = blackCrossings
+	return currentMaxBlackCrossings
+
 # Given a binary image of sheet music with staff lines removed, a list of notehead objects and a Staff object, this function identifies the type of note each of the noteheads belong to
 def identifyNotes(img,noteheads,staffData):
 	# Invert the image for findContours
@@ -131,16 +149,6 @@ def identifyNotes(img,noteheads,staffData):
 			filteredContours.append(contour)
 	contours = filteredContours
 
-	imgContours = np.zeros(img.shape,dtype=np.uint8)
-	cv2.drawContours(imgContours,contours,-1,255)
-	boundingBoxes = []
-	for contour in contours:
-		boundingBoxes.append(cv2.boundingRect(contour))
-	for x,y,w,h in boundingBoxes:
-		cv2.rectangle(imgContours,(x,y),(x+w,y+h),127,1)
-
-	cv2.imwrite('identifyNotesContoursTest.png',imgContours)
-
 	# contourMap is a list of tuples (contour,noteheads) where contour is a list of points representing a contour and noteheads is a list of noteheads whose centre lies within that contour
 	contourMap = []
 	
@@ -155,11 +163,49 @@ def identifyNotes(img,noteheads,staffData):
 	print(len(contours))
 	print(len(contourMap))
 	
-	filteredContourMap = []
+	imgContours = np.zeros(img.shape,dtype=np.uint8)
+	cv2.drawContours(imgContours,contours,-1,255)
+	boundingBoxes = []
+	for contour,noteheads in contourMap:
+		boundingBoxes.append(cv2.boundingRect(contour))
+	for x,y,w,h in boundingBoxes:
+		cv2.rectangle(imgContours,(x,y),(x+w,y+h),127,1)
 
+	cv2.imwrite('identifyNotesContoursTest.png',imgContours)
 	
+	# For each contour, identify each note that lies within it by looking at the number of vertical black crossings either side of the note head
+
+	for contour,noteheads in contourMap:
+		roi = cv2.boundingRect(contour)
+		contourImg = np.empty((roi[3]+32,roi[2]+32),dtype=np.uint8)
+		contourImg.fill(255)
+		offsetX = - roi[0] + 16
+		offsetY = - roi[1] + 16
+		for point in contour:
+			point[0][0] = point[0][0] + offsetX
+			point[0][1] = point[0][1] + offsetY
+		cv2.drawContours(contourImg,[contour],-1,0,-1)
+		cv2.imshow('contour',contourImg)
+		cv2.waitKey(0)
+		cv2.destroyAllWindows()
+		for notehead in noteheads:
+			mvbc = maxVerticalBlackCrossings(contourImg,notehead,offsetX)
+			if (mvbc == 0):
+				notehead.name = 'crotchet'
+			elif (mvbc == 1):
+				notehead.name = 'quaver'
+			elif (mvbc == 2):
+				notehead.name = 'semiquaver'
+			elif (mvbc == 3):
+				notehead.name = 'demisemiquaver'
+			else:
+				notehead.name = 'unidentified'
+			print(notehead.name)
+		print	
+
 def performRecognition(img,staffData):
 	templateMatchingImage = img.copy()
 	musicalObjects = matchTemplates(templateMatchingImage,staffData)
 	musicalObjects = filterMusicalObjects(musicalObjects)
 	identifyNotes(img,musicalObjects['note head'],staffData)
+	return musicalObjects

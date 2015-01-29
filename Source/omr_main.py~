@@ -30,6 +30,4 @@ for musicalObjectList in musicalObjects.values():
 		x,y = musicalObject.point
 		w,h = musicalObject.dimensions
 		cv2.rectangle(imgRecognitionOutput,(x,y),(x+w,y+h),(0,0,255),3)
-parsedFilePath = sys.argv[1].split('/')
-imageName = parsedFilePath[-1].split('.')[0]
-cv2.imwrite('recognition_output_' + imageName + '.png',imgRecognitionOutput)
+

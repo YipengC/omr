@@ -40,19 +40,19 @@ def matchTemplates(img,staffData):
 	templatePath = '../Resources/Templates/'
 
 	templates = (
-		('treble clef','treble_clef_template.png'),
-		('bass clef','bass_clef_template.png'),
-		('crotchet rest','crotchet_rest_template.png'),
-		('time signature 4','time_signature_4_template.png'),
-		('time signature 3','time_signature_3_template.png'),
-		('quaver rest','quaver_rest_template.png'),
-		('semibreve rest','semibreve_rest_template.png'),
-		('sharp','sharp_template.png'),
-		('natural','natural_template.png'),
-		('flat','flat_template.png'),
-	#	('note head','note_head_template.png'),
-		('note head','note_head_2_template.png'),
-		('minim note head','minim_note_head_template.png')
+		('treble clef','treble_clef_template.png',20),
+		('bass clef','bass_clef_template.png',20),
+		('crotchet rest','crotchet_rest_template.png',20),
+		('time signature 4','time_signature_4_template.png',20),
+		('time signature 3','time_signature_3_template.png',20),
+		('quaver rest','quaver_rest_template.png',20),
+		('semibreve rest','semibreve_rest_template.png',20),
+		('sharp','sharp_template.png',20),
+		('natural','natural_template.png',20),
+		('flat','flat_template.png',20),
+	#	('note head','note_head_template.png',20),
+		('note head','note_head_2_template.png',20),
+		('minim note head','minim_note_head_template.png',20)
 	)
 
 	methods = [cv2.TM_CCOEFF,cv2.TM_CCOEFF_NORMED,cv2.TM_CCORR,cv2.TM_CCORR_NORMED,cv2.TM_SQDIFF,cv2.TM_SQDIFF_NORMED]
@@ -201,10 +201,11 @@ def identifyNotes(img,noteheads,staffData):
 			else:
 				notehead.name = 'unidentified'
 			print(notehead.name)
-		print
+		print	
 
 def performRecognition(img,staffData):
 	templateMatchingImage = img.copy()
 	musicalObjects = matchTemplates(templateMatchingImage,staffData)
 	musicalObjects = filterMusicalObjects(musicalObjects)
 	identifyNotes(img,musicalObjects['note head'],staffData)
+	return musicalObjects
