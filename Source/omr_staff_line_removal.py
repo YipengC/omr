@@ -8,7 +8,7 @@ import omr_classes
 def removeStaffLines(img,staff):
 	width = len(img[0])
 	for y in staff.tops:
-		for i in range(0,5):
+		for i in range(-2,7):
 			for j in range(0,staff.lineThickness+1):			
 				currentY = y + staff.lineSpacing*i + j
 				cv2.line(img,(0,currentY),(width,currentY),255)

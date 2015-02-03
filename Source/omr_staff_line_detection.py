@@ -136,7 +136,7 @@ def getStaffData(imgInput):
 
 	# Show staff lines on copy of input image
 	imgStaffLines = imgInput.copy()
-
+	imgStaffLines = cv2.cvtColor(imgStaffLines,cv2.COLOR_GRAY2RGB)
 	for rho in staffTops:
 		for i in range(0,5):
 			y = rho + i*staffLineSpacing
