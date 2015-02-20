@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import math
 import omr_classes
+import omr_bar_line_detection
 
 def dist(a,b):
 	return math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
@@ -52,9 +53,10 @@ def matchTemplates(img,staffData):
 		('sharp','sharp_template.png',20),
 		('natural','natural_template.png',20),
 		('flat','flat_template.png',20),
-	#	('note head','note_head_template.png',20),
+		('note head','note_head_template.png',20),
 		('note head','note_head_2_template.png',20),
-		('minim note head','minim_note_head_template.png',20)
+		('minim note head','minim_note_head_template.png',20)#,
+		#('minim note head','minim_note_head_2_template.png',20)
 	)
 
 	methods = [cv2.TM_CCOEFF,cv2.TM_CCOEFF_NORMED,cv2.TM_CCORR,cv2.TM_CCORR_NORMED,cv2.TM_SQDIFF,cv2.TM_SQDIFF_NORMED]
@@ -74,7 +76,9 @@ def matchTemplates(img,staffData):
 		'natural': [],
 		'flat': [],
 		'note head': [],
-		'minim note head': []
+		'minim note head': [],
+		'key signature': [],
+		'bar line': []
 	}
 
 	matchHighlightImage = img.copy()
@@ -83,8 +87,8 @@ def matchTemplates(img,staffData):
 		templateImg = cv2.imread(templatePath + template[1],0)	
 		height = len(templateImg)
 		width = len(templateImg[1])
-	
-		result = cv2.matchTemplate(img,templateImg,methods[1])
+		templateImgScaled = cv2.resize(templateImg,None,fx=staffData.lineSpacing/template[2],fy=staffData.lineSpacing/template[2])
+		result = cv2.matchTemplate(img,templateImgScaled,methods[1])
 		
 		musicalObjectPoints = []
 
@@ -189,9 +193,11 @@ def identifyNotes(img,noteheads,staffData):
 			point[0][0] = point[0][0] + offsetX
 			point[0][1] = point[0][1] + offsetY
 		cv2.drawContours(contourImg,[contour],-1,0,-1)
+		"""
 		cv2.imshow('contour',contourImg)
 		cv2.waitKey(0)
 		cv2.destroyAllWindows()
+		"""
 		for notehead in noteheads:
 			mvbc = maxVerticalBlackCrossings(contourImg,notehead,offsetX)
 			if (mvbc == 0):
@@ -205,11 +211,68 @@ def identifyNotes(img,noteheads,staffData):
 			else:
 				notehead.name = 'unidentified'
 			print(notehead.name)
-		print	
+		print
+
+def matchAccidentalToNote(accidental,musicalObjects,lineSpacing):
+	xThreshold = 2*lineSpacing
+	yThreshold = lineSpacing
+	accidentalCenter = (accidental.point[0] + accidental.dimensions[0]/2, accidental.point[1] + accidental.dimensions[1]/2)
+	matchedNote = None
+	for note in musicalObjects['note head']:
+		noteCenter = (note.point[0] + note.dimensions[0]/2, note.point[1] + note.dimensions[1]/2)
+		if ((abs(noteCenter[0] - accidentalCenter[0]) < xThreshold) and (abs(noteCenter[1] - accidentalCenter[1]) < yThreshold) and (accidentalCenter[0] < noteCenter[0])):
+			if (not(matchedNote == None)):
+				raise Exception('Accidental at ' + str(accidentalCenter) + ' already matched!')
+			matchedNote = note
+	return matchedNote
+
+def resolveAccidentals(musicalObjects,staffData,img):
+	accidentalTypes = ['sharp','natural','flat']
+	
+	# Mark accidentals with their type in musicalObjects
+	for accidentalType in accidentalTypes:
+		for accidental in musicalObjects[accidentalType]:
+			accidental.accidental = accidentalType
+
+	# Perform accidental matching for each type of accidental
+	for accidentalType in accidentalTypes:
+		for accidental in musicalObjects[accidentalType]:
+			matchedNote = matchAccidentalToNote(accidental,musicalObjects,staffData.lineSpacing)
+			if (not(matchedNote == None)):
+				cv2.rectangle(img,matchedNote.point,tuple(map(sum,zip(matchedNote.point,matchedNote.dimensions))),(0,255,0))
+				matchedNote.accidental = accidentalType
+			else:
+				cv2.rectangle(img,accidental.point,tuple(map(sum,zip(accidental.point,accidental.dimensions))),(0,255,0))
+				musicalObjects['key signature'].append(accidental)
+
+def resolveKeySignature(musicalObjects,staffData,accidentalsImage):
+	# First determine if the key signature is in sharps or flats
+	keyType = None
+	for accidental in musicalObjects['key signature']:
+		if (accidental.accidental == 'sharp'):
+			if ((keyType != None) and (keyType != 'sharp')):
+				raise Exception('Key signature contains sharps and ' + str(keyType) + 's')
+			else:
+				keyType = 'sharp'
+		elif (accidental.accidental == 'flat'):
+			if ((keyType != None) and (keyType != 'flat')):
+				raise Exception('Key signature contains flats and ' + str(keyType) + 's')
+
+def identifyBarLines(img,staffData,musicalObjects):
+	barLines = omr_bar_line_detection.detectBarLines(img,staffData)
+	# Flatten the barLines list
+	barLines = [y for x in barLines for y in x]
+	barLineObjects = musicalObjects['bar line']
+	for barLinePoint in barLines:
+		barLineObjects.append(omr_classes.MusicalObject('bar line',point=barLinePoint,dimensions=(1,1)))
+	print(barLines)
 
 def performRecognition(img,staffData):
 	templateMatchingImage = img.copy()
+	accidentalsImage = img.copy()
 	musicalObjects = matchTemplates(templateMatchingImage,staffData)
 	musicalObjects = filterMusicalObjects(musicalObjects)
 	identifyNotes(img,musicalObjects['note head'],staffData)
+	resolveAccidentals(musicalObjects,staffData,accidentalsImage)
+	identifyBarLines(img,staffData,musicalObjects)
 	return musicalObjects

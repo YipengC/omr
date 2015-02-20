@@ -1,11 +1,12 @@
 import bisect
 
 class MusicalObject:
-	def __init__(self,name,point=None,dimensions=None,pitch=None):
+	def __init__(self,name,point=None,dimensions=None,pitch=None,accidental=None):
 		self.name = name
 		self.point = point
 		self.pitch = pitch
 		self.dimensions = dimensions
+		self.accidental = accidental
 
 class Staff:
 	

@@ -5,6 +5,8 @@ import omr_classes
 import omr_staff_line_detection
 import omr_staff_line_removal
 import omr_recognition
+import omr_reconstruction
+import omr_bar_line_detection
 
 img = cv2.imread(sys.argv[1],0)
 
@@ -33,3 +35,6 @@ for musicalObjectList in musicalObjects.values():
 parsedFilePath = sys.argv[1].split('/')
 imageName = parsedFilePath[-1].split('.')[0]
 cv2.imwrite('recognition_output_' + imageName + '.png',imgRecognitionOutput)
+
+# Perform reconstruction
+omr_reconstruction.performReconstruction(musicalObjects,staffData)
