@@ -13,10 +13,12 @@ class Staff:
 	treblePitches = ('C6','B5','A5','G5','F5','E5','D5','C5','B4','A4','G4','F4','E4','D4','C4','B3','A3')
 	bassPitches = ('E4','D4','C4','B3','A3','G3','F3','E3','D3','C3','B2','A2','G2','F2','E2','D2','C1')
 
-	def __init__(self,lineSpacing=0,lineThickness=0,tops=[]):
+	def __init__(self,lineSpacing=0,lineThickness=0,tops=[],timeSignatures=[],keySignatures=[]):
 		self.lineSpacing = lineSpacing
 		self.lineThickness = lineThickness
 		self.tops = tops
+		self.keySignatures = keySignatures
+		self.timeSignatures = timeSignatures
 		self.trebles = []
 		self.basses = []
 		self.lines = {}
@@ -64,10 +66,3 @@ class Staff:
 		if (key == len(yValues)):
 			key = key - 1
 		return self.lines[yValues[key]]
-
-class Sheet:
-	def __init__(self,staff=None,width=0,height=0):
-		self.staff = staff
-		self.width = width
-		self.height = height
-

@@ -37,4 +37,4 @@ imageName = parsedFilePath[-1].split('.')[0]
 cv2.imwrite('recognition_output_' + imageName + '.png',imgRecognitionOutput)
 
 # Perform reconstruction
-omr_reconstruction.performReconstruction(musicalObjects,staffData)
+omr_reconstruction.performReconstruction(musicalObjects,staffData,imageName)
