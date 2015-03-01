@@ -57,6 +57,9 @@ def splitIntoMeasures(linearisedMusicalObjects):
 			print(musicalObject.name + str(musicalObject.point))
 		print
 
+def outputLilypond(trebleInMeasures,bassInMeasures,keySignature,imageName):
+	outputFile = open(imageName + '.ly','w')
+
 def splitTrebleAndBass(linearisedMusicalObjects):
 	trebleLinearised,bassLinearised = [],[]
 	for musicalObject in linearisedMusicalObjects:
@@ -94,46 +97,43 @@ def resolveKeySignature(musicalObjects):
 	# Determine key
 	if (keyType == 'sharp'):
 		if not(('F' in accidentalPitches)):
-			return 'c'
+			return 0
 		elif (not('C' in accidentalPitches)):
-			return 'g'
+			return 1
 		elif (not('G' in accidentalPitches)):
-			return 'd'
+			return 2
 		elif (not('D' in accidentalPitches)):
-			return 'a'
+			return 3
 		elif (not('A' in accidentalPitches)):
-			return 'e'
+			return 4
 		elif (not('E' in accidentalPitches)):
-			return 'b'
+			return 5
 		elif (not('B' in accidentalPitches)):
-			return 'fis'
+			return 6
 		else:
-			return 'cis'
+			return 7
 	elif (keyType == 'flat'):
 		if not(('B' in accidentalPitches)):
-			return 'c'
+			return 0
 		elif (not('E' in accidentalPitches)):
-			return 'f'
+			return -1
 		elif (not('A' in accidentalPitches)):
-			return 'bes'
+			return -2
 		elif (not('D' in accidentalPitches)):
-			return 'ees'
+			return -3
 		elif (not('G' in accidentalPitches)):
-			return 'aes'
+			return -4
 		elif (not('C' in accidentalPitches)):
-			return 'des'
+			return -5
 		elif (not('F' in accidentalPitches)):
-			return 'ges'
+			return -6
 		else:
-			return 'b'
+			return -7
 	else:
-		return 'c'
+		return 0
 
 def resolveTimeSignature(musicalObjects):
 	timeSignatureObjects = musicalObjects['time signature 8'] + musicalObjects['time signature 6'] + musicalObjects['time signature 4'] + musicalObjects['time signature 3']
 	timeSignatureObjects.sort(key=lambda x: x.point[1])
 	print(timeSignatureObjects[0].name)
 	print(timeSignatureObjects[1].name)
-
-def outputLilypond(trebleInMeasures,bassInMeasures,keySignature,imageName):
-	outputFile = open(imageName + '.ly','w')
