@@ -1,6 +1,68 @@
 import cv2
 import omr_classes
 
+pitchMap = {
+	'C6' : "c'''",
+	'B5' : "b''",
+	'A5' : "a''",
+	'G5' : "g''",
+	'F5' : "f''",
+	'E5' : "e''",
+	'D5' : "d''",
+	'C5' : "c''",
+	'B4' : "b'",
+	'A4' : "a'",
+	'G4' : "g'",
+	'F4' : "f'",
+	'E4' : "e'",
+	'D4' : "d'",
+	'C4' : "c'",
+	'B3' : "b",
+	'A3' : "a",
+	'G3' : "g",
+	'F3' : "f",
+	'E3' : "e",
+	'D3' : "d",
+	'C3' : "c",
+	'B2' : "b,",
+	'A2' : "a,",
+	'G2' : "g,",
+	'F2' : "f,",
+	'E2' : "e,",
+	'D2' : "d,",
+	'C1' : "c,,"
+}
+
+durationMap = {
+	'semibreve' : '1',
+	'semibreve rest' : '1',
+	'minim' : '2',
+	'minim rest' : '2',
+	'crotchet' : '4',
+	'crotchet rest' : '4',
+	'quaver' : '8',
+	'quaver rest' : '8',
+	'semiquaver' : '16',
+	'semiquaver rest' : '16',
+	'demisemiquaver' : '32',
+	'demisemiquaver rest' : '32'
+}
+
+typeMap = {
+	'semibreve' : 'note',
+	'mimim' : 'note',
+	'crotchet' : 'note',
+	'quaver' : 'note',
+	'semiquaver' : 'note',
+	'demisemiquaver' : 'note',
+	'semibreve rest' : 'rest',
+	'minim rest' : 'rest',
+	'crotchet rest' : 'rest',
+	'quaver rest' : 'rest',
+	'semiquaver rest' : 'rest',
+	'demisemiquaver rest' : 'rest'
+}
+
 def performReconstruction(musicalObjects,staffData,imageName):
 	linearisedMusicalObjects = lineariseMusicalObjects(musicalObjects,staffData)
 	print(linearisedMusicalObjects)
@@ -10,7 +72,8 @@ def performReconstruction(musicalObjects,staffData,imageName):
 	keySignature = resolveKeySignature(musicalObjects)
 	print('key signature: ' + str(keySignature))
 	timeSignature = resolveTimeSignature(musicalObjects)
-	outputLilypond(trebleInMeasures,bassInMeasures,keySignature,imageName)
+	print('trebleInMeasures: ' + str(trebleInMeasures))
+	outputLilypond(trebleInMeasures,bassInMeasures,keySignature,timeSignature,imageName)
 
 def lineariseMusicalObjects(musicalObjects,staffData):
 	staffBoundaries = []
@@ -23,7 +86,6 @@ def lineariseMusicalObjects(musicalObjects,staffData):
 	musicalObjectsLinearised = []
 	for _ in range(0,numberOfBoundaries):
 		musicalObjectsLinearised.append([])
-	print(musicalObjectsLinearised)
 	for musicalObjectList in musicalObjects.values():
 		for musicalObject in musicalObjectList:
 			for i in range(0,numberOfBoundaries):
@@ -56,12 +118,11 @@ def splitIntoMeasures(linearisedMusicalObjects):
 		for musicalObject in measure:
 			print(musicalObject.name + str(musicalObject.point))
 		print
-
-def outputLilypond(trebleInMeasures,bassInMeasures,keySignature,imageName):
-	outputFile = open(imageName + '.ly','w')
+	return musicalObjectsInMeasures
 
 def splitTrebleAndBass(linearisedMusicalObjects):
-	trebleLinearised,bassLinearised = [],[]
+	trebleLinearised = []
+	bassLinearised = []
 	for musicalObject in linearisedMusicalObjects:
 		if (musicalObject.name == 'bar line'):
 			trebleLinearised.append(musicalObject)
@@ -97,43 +158,67 @@ def resolveKeySignature(musicalObjects):
 	# Determine key
 	if (keyType == 'sharp'):
 		if not(('F' in accidentalPitches)):
-			return 0
+			return 'c'
 		elif (not('C' in accidentalPitches)):
-			return 1
+			return 'g'
 		elif (not('G' in accidentalPitches)):
-			return 2
+			return 'd'
 		elif (not('D' in accidentalPitches)):
-			return 3
+			return 'a'
 		elif (not('A' in accidentalPitches)):
-			return 4
+			return 'e'
 		elif (not('E' in accidentalPitches)):
-			return 5
+			return 'b'
 		elif (not('B' in accidentalPitches)):
-			return 6
+			return 'fis'
 		else:
-			return 7
+			return 'cis'
 	elif (keyType == 'flat'):
 		if not(('B' in accidentalPitches)):
-			return 0
+			return 'c'
 		elif (not('E' in accidentalPitches)):
-			return -1
+			return 'f'
 		elif (not('A' in accidentalPitches)):
-			return -2
+			return 'bes'
 		elif (not('D' in accidentalPitches)):
-			return -3
+			return 'ees'
 		elif (not('G' in accidentalPitches)):
-			return -4
+			return 'aes'
 		elif (not('C' in accidentalPitches)):
-			return -5
+			return 'des'
 		elif (not('F' in accidentalPitches)):
-			return -6
+			return 'ges'
 		else:
-			return -7
+			return 'b'
 	else:
-		return 0
+		return 'c'
 
 def resolveTimeSignature(musicalObjects):
 	timeSignatureObjects = musicalObjects['time signature 8'] + musicalObjects['time signature 6'] + musicalObjects['time signature 4'] + musicalObjects['time signature 3']
 	timeSignatureObjects.sort(key=lambda x: x.point[1])
 	print(timeSignatureObjects[0].name)
 	print(timeSignatureObjects[1].name)
+	return (timeSignatureObjects[0].name[-1],timeSignatureObjects[1].name[-1])
+
+def outputLilypond(trebleInMeasures,bassInMeasures,keySignature,timeSignature,imageName):
+	outputFile = open(imageName + '.ly','w')
+	outputFile.write("upper = \\absolute {\n\\clef treble\n\\key " + keySignature + " \\major\n\\time " + timeSignature[0] + "/" + timeSignature[1] + "\n\n" + outputLilypondPart(trebleInMeasures) + "\n}\n\n")
+
+# Returns a string corresponding to the LilyPond output for partInMeasures
+def outputLilypondPart(partInMeasures):
+	outputString = ""
+	for measure in partInMeasures:
+		for musicalObject in measure:
+			musicalObjectType = typeMap.get(musicalObject.name)
+			if (musicalObjectType == 'note'):
+				word = pitchMap[musicalObject.pitch]
+				word += durationMap[musicalObject.name]
+				if (musicalObject.accidental == 'sharp'):
+					word = word[0] + 'is' + word[1:]
+				elif (musicalObject.accidental == 'flat'):
+					word = word[0] + 'es' + word[1:]
+				outputString += " " + word
+			elif (musicalObjectType == 'rest'):
+				word = 'r' + durationMap[musicalObject.name]
+				outputString += " " + word
+	return outputString
