@@ -63,6 +63,11 @@ class Staff:
 		yValues = self.lines.keys()
 		yValues.sort()
 		key = bisect.bisect_left(yValues,y)
+		if (not(key == 0)):
+			distanceAbove = y - yValues[key-1]
+			distanceBelow = yValues[key] - y
+			if (distanceAbove < distanceBelow):
+				key = key - 1
 		if (key == len(yValues)):
 			key = key - 1
 		return self.lines[yValues[key]]
