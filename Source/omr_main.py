@@ -21,7 +21,11 @@ imgRecognitionOutput = cv2.cvtColor(imgRecognitionOutput,cv2.COLOR_GRAY2RGB)
 staffData = omr_staff_line_detection.getStaffData(img)
 
 # Remove staff lines
-img = omr_staff_line_removal.removeStaffLines(img,staffData)
+#img = omr_staff_line_removal.removeStaffLines(img,staffData)
+
+# Test removeStaffLinesSP
+img = omr_staff_line_removal.removeStaffLinesSP(img,staffData)
+raw_input("Press Enter to continue...")
 
 # Perform recognition
 musicalObjects = omr_recognition.performRecognition(img,staffData)

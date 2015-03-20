@@ -41,21 +41,21 @@ def matchTemplates(img,staffData):
 	templatePath = '../Resources/Templates/'
 
 	templates = (
-		('treble clef','treble_clef_template.png',20),
-		('bass clef','bass_clef_template.png',20),
-		('crotchet rest','crotchet_rest_template.png',20),
-		('time signature 8','time_signature_8_template.png',20),
-		('time signature 6','time_signature_6_template.png',20),
-		('time signature 4','time_signature_4_template.png',20),
-		('time signature 3','time_signature_3_template.png',20),
-		('quaver rest','quaver_rest_template.png',20),
-		('semibreve rest','semibreve_rest_template.png',20),
-		('sharp','sharp_template.png',20),
-		('natural','natural_template.png',20),
-		('flat','flat_template.png',20),
-		('note head','note_head_template.png',20),
-		('note head','note_head_2_template.png',20),
-		('minim note head','minim_note_head_template.png',20)#,
+		('treble clef','treble_clef_template.png',20.0),
+		('bass clef','bass_clef_template.png',20.0),
+		('crotchet rest','crotchet_rest_template.png',20.0),
+		('time signature 8','time_signature_8_template.png',20.0),
+		('time signature 6','time_signature_6_template.png',20.0),
+		('time signature 4','time_signature_4_template.png',20.0),
+		('time signature 3','time_signature_3_template.png',20.0),
+		('quaver rest','quaver_rest_template.png',20.0),
+		('semibreve rest','semibreve_rest_template.png',20.0),
+		('sharp','sharp_template.png',20.0),
+		('natural','natural_template.png',20.0),
+		('flat','flat_template.png',20.0),
+		('note head','note_head_template.png',20.0),
+		('note head','note_head_2_template.png',20.0),
+		('minim note head','minim_note_head_template.png',20.0)#,
 		#('minim note head','minim_note_head_2_template.png',20)
 	)
 
@@ -130,6 +130,10 @@ def maxVerticalBlackCrossings(img,notehead,offsetX):
 	xValues.append(notehead.point[0] + notehead.dimensions[0] + offsetX + 8)
 	currentMaxBlackCrossings = 0
 	for x in xValues:
+		if (x < 0):
+			x = 0
+		elif (x >= len(img[1])):
+			x = len(img[1]) - 1
 		transitions = 0
 		currentColour = 255
 		for y in range(0,len(img)):

@@ -79,6 +79,21 @@ typeMap = {
 	'bar line' : 'bar line'
 }
 
+xmlTypeMap = {
+	'semibreve' : 'whole',
+	'mimim' : 'half',
+	'crotchet' : 'quarter',
+	'quaver' : 'eighth',
+	'semiquaver' : '16th',
+	'demisemiquaver' : '32nd',
+	'semibreve rest' : 'whole',
+	'minim rest' : 'half',
+	'crotchet rest' : 'quarter',
+	'quaver rest' : 'eighth',
+	'semiquaver rest' : '16th',
+	'demisemiquaver rest' : '32nd',
+}
+
 def performReconstruction(musicalObjects,staffData,imageName):
 	trebleLinearised,bassLinearised = lineariseMusicalObjects(musicalObjects,staffData)
 	trebleInMeasures = splitIntoMeasures(trebleLinearised)
@@ -322,7 +337,7 @@ def outputLilypondPart(partInMeasures):
 
 def outputMusicXML(trebleInMeasures,bassInMeasures,keySignature,timeSignature,imageName):
 	outputFile = open(imageName + '.xml','w')
-	templateFile = open('MusicXMLTemplate','r')
+	templateFile = open('../Resources/MusicXML/MusicXMLTemplate','r')
 	output = templateFile.read()
 	treblePart = ""
 	measureNumber = 1
@@ -358,8 +373,8 @@ def outputMeasure(measure,number,keySignature,timeSignature,clef):
 				alter = "1"
 			elif (musicalObject.accidental == 'flat'):
 				alter = "-1"
-			measureXML += '<note><pitch><step>' + musicalObject.pitch[0] + '</step><alter>' + alter + '</alter><octave>' + musicalObject.pitch[1] + '</octave></pitch><duration>' + xmlDurationMap[musicalObject.name]  + '</duration></note>'
+			measureXML += '<note><pitch><step>' + musicalObject.pitch[0] + '</step><alter>' + alter + '</alter><octave>' + musicalObject.pitch[1] + '</octave></pitch><duration>' + xmlDurationMap[musicalObject.name]  + '</duration><type>' + xmlTypeMap[musicalObject.name] + '</type></note>'
 		elif (musicalObjectType == 'rest'):
-			measureXML += '<note><rest/><duration>' + xmlDurationMap[musicalObject.name] + '</duration></note>'
+			measureXML += '<note><rest/><duration>' + xmlDurationMap[musicalObject.name] + '</duration><type>' + xmlTypeMap[musicalObject.name] + '</type></note>'
 	measureXML += '</measure>'
 	return measureXML

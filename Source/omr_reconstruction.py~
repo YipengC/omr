@@ -50,7 +50,7 @@ durationMap = {
 
 xmlDurationMap = {
 	'semibreve' : '32',
-	'semibreve rest' : '32',
+	'semibreve rest' : '16',
 	'minim' : '16',
 	'minim rest' : '16',
 	'crotchet' : '8',
@@ -327,13 +327,15 @@ def outputMusicXML(trebleInMeasures,bassInMeasures,keySignature,timeSignature,im
 	treblePart = ""
 	measureNumber = 1
 	for measure in trebleInMeasures:
-		treblePart += outputMeasure(measure,measureNumber,keySignature,timeSignature,'treble')
-		measureNumber += 1
+		if (measure):
+			treblePart += outputMeasure(measure,measureNumber,keySignature,timeSignature,'treble')
+			measureNumber += 1
 	bassPart = ""
 	measureNumber = 1
 	for measure in bassInMeasures:
-		bassPart += outputMeasure(measure,measureNumber,keySignature,timeSignature,'bass')
-		measureNumber += 1
+		if (measure):
+			bassPart += outputMeasure(measure,measureNumber,keySignature,timeSignature,'bass')
+			measureNumber += 1
 	output = output.replace('TREBLE',treblePart)
 	output = output.replace('BASS',bassPart)
 	outputFile.write(output)
@@ -342,12 +344,13 @@ def outputMusicXML(trebleInMeasures,bassInMeasures,keySignature,timeSignature,im
 
 def outputMeasure(measure,number,keySignature,timeSignature,clef):
 	measureXML = '<measure number="' + str(number) + '">'
-	for musicalObject in measure:
+	if (number == 1):
 		if (clef == 'treble'):
 			xmlClef = 'G2'
 		elif (clef == 'bass'):
 			xmlClef = 'F4'
-		measureXML += '<attributes><divisions>32</divisions><key><fifths>' + keySignature + '</fifths></key><time><beats>' + timeSignature[0] + '</beats><beat-type>' + timeSignature[1] + '</beat-type></time><clef><sign>' + xmlClef[0] + '</sign><line>' + xmlClef[1] + '</line></clef></attributes>'
+		measureXML += '<attributes><divisions>8</divisions><key><fifths>' + keySignature + '</fifths></key><time><beats>' + timeSignature[0] + '</beats><beat-type>' + timeSignature[1] + '</beat-type></time><clef><sign>' + xmlClef[0] + '</sign><line>' + xmlClef[1] + '</line></clef></attributes>'
+	for musicalObject in measure:
 		musicalObjectType = typeMap.get(musicalObject.name)
 		if (musicalObjectType == 'note'):
 			alter = ""
